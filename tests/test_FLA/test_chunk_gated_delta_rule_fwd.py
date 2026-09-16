@@ -104,24 +104,42 @@ def test_chunk_gated_delta_rule_fwd_no_initial_state(T):
 
 
 @pytest.mark.chunk_gated_delta_rule_fwd
-@pytest.mark.xfail(
-    reason="Triton 3.6.0 compilation error on Hopper: 'ttng.warp_group_dot' op pipeliner issue"
-)
-@pytest.mark.parametrize("T", [64, 128])
-def test_chunk_gated_delta_rule_fwd_with_cu_seqlens(T):
+@pytest.mark.parametrize("lengths", [(1, 1, 62), (3, 17, 44), (1, 63, 64)])
+def test_chunk_gated_delta_rule_fwd_with_cu_seqlens(lengths):
     device = flag_gems.device
     dtype = torch.bfloat16
     torch.manual_seed(1)
 
-    B, H, K, V = 1, 4, 64, 64
+    B, T, H, K, V = 1, sum(lengths), 4, 64, 64
     q = torch.randn(B, T, H, K, device=device, dtype=dtype)
-    k = torch.randn(B, T, H, K, device=device, dtype=dtype)
+    # Normalized keys keep the recurrence stable across multi-token sequences.
+    k = F.normalize(torch.randn(B, T, H, K, device=device), dim=-1).to(dtype)
     v = torch.randn(B, T, H, V, device=device, dtype=dtype)
     g = F.logsigmoid(torch.randn(B, T, H, device=device, dtype=dtype))
     beta = torch.rand(B, T, H, device=device, dtype=dtype).sigmoid()
     scale = K**-0.5
-    initial_state = torch.zeros(B, H, K, V, device=device, dtype=dtype)
-    cu_seqlens = torch.arange(T + 1, device=device, dtype=torch.long)
+    initial_state = 0.1 * torch.randn(len(lengths), H, K, V, device=device, dtype=dtype)
+    offsets = [0]
+    for length in lengths:
+        offsets.append(offsets[-1] + length)
+    cu_seqlens = torch.tensor(offsets, device=device, dtype=torch.long)
+
+    # The fixed-length reference is applied independently to each packed sequence.
+    ref_outputs, ref_states = [], []
+    for i, (start, end) in enumerate(zip(offsets[:-1], offsets[1:])):
+        ref_o, ref_state = naive_chunk_gated_delta_rule_fwd(
+            q[:, start:end],
+            k[:, start:end],
+            v[:, start:end],
+            g[:, start:end],
+            beta[:, start:end],
+            scale,
+            initial_state[i : i + 1],
+        )
+        ref_outputs.append(ref_o)
+        ref_states.append(ref_state)
+    ref_o = torch.cat(ref_outputs, dim=1)
+    ref_final_state = torch.cat(ref_states, dim=0)
 
     result = flag_gems.chunk_gated_delta_rule_fwd(
         q=q,
@@ -134,8 +152,11 @@ def test_chunk_gated_delta_rule_fwd_with_cu_seqlens(T):
         output_final_state=True,
         cu_seqlens=cu_seqlens,
     )
-    # Verify output shapes are correct
     res_o = result[1]
     res_final_state = result[3]
     assert res_o.shape == (B, T, H, V)
-    assert res_final_state.shape[1:] == (H, K, V)
+    assert res_final_state.shape == (len(lengths), H, K, V)
+    torch.testing.assert_close(res_o.float(), ref_o, rtol=2e-2, atol=2e-2)
+    torch.testing.assert_close(
+        res_final_state.float(), ref_final_state, rtol=2e-2, atol=2e-2
+    )
