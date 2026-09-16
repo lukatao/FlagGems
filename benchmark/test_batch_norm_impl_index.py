@@ -1,6 +1,8 @@
 import pytest
 import torch
 
+import flag_gems
+
 from . import base, consts
 
 
@@ -32,9 +34,7 @@ def test__batch_norm_impl_index():
         input_fn=batch_norm_impl_index_input_fn,
         op_name="_batch_norm_impl_index",
         torch_op=torch._batch_norm_impl_index,
+        gems_op=flag_gems._batch_norm_impl_index,
         dtypes=consts.FLOAT_DTYPES,
     )
-    from flag_gems.ops._batch_norm_impl_index import batch_norm_impl_index as gems_bn
-
-    bench.set_gems(gems_bn)
     bench.run()

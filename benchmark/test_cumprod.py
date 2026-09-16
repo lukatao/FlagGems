@@ -16,7 +16,6 @@ import pytest
 import torch
 
 import flag_gems
-from flag_gems.ops import cumprod as flag_gems_cumprod
 
 from . import base, consts
 
@@ -64,7 +63,7 @@ def test_cumprod():
         op_name="cumprod",
         input_fn=input_fn,
         torch_op=torch_cumprod,
-        gems_op=flag_gems_cumprod,
+        gems_op=flag_gems.cumprod,
         dtypes=CUMPROD_DTYPES,
     )
     bench.run()
