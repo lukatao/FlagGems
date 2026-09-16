@@ -71,7 +71,7 @@ def test_topk_softmax(
     device = flag_gems.device
 
     gating_output = torch.randn(
-        num_tokens, num_experts, dtype=torch.float32, device=device
+        num_tokens, num_experts, dtype=input_dtype, device=device
     )
 
     vllm_weights = torch.empty(num_tokens, topk, device=device, dtype=torch.float32)
@@ -82,7 +82,9 @@ def test_topk_softmax(
         vllm_weights,
         vllm_indices,
         vllm_token_expert,
-        gating_output,
+        # vLLM expects FP32 logits; promote the already-quantized input so
+        # both implementations see the same values. Gems receives input_dtype.
+        gating_output.float(),
         renormalize,
     )
 
