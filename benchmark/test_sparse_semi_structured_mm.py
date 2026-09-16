@@ -16,6 +16,7 @@ import pytest
 import torch
 
 import flag_gems
+from flag_gems.ops._sparse_semi_structured_mm import _sparse_semi_structured_mm_ref
 
 from . import base, consts
 
@@ -48,7 +49,8 @@ class SparseSemiStructuredMMBenchmark(base.Benchmark):
 def test_sparse_semi_structured_mm():
     bench = SparseSemiStructuredMMBenchmark(
         op_name="sparse_semi_structured_mm",
-        torch_op=flag_gems._sparse_semi_structured_mm,
+        torch_op=_sparse_semi_structured_mm_ref,
+        gems_op=flag_gems._sparse_semi_structured_mm,
         dtypes=consts.FLOAT_DTYPES,
     )
     bench.run()

@@ -31,6 +31,9 @@ class NestedViewFromBufferCopyBenchmark(base.Benchmark):
     Benchmark for _nested_view_from_buffer_copy operator.
     """
 
+    # The native device op is unsafe on Metax; do not manufacture a speedup.
+    DEFAULT_METRICS = ["latency"]
+
     def set_shapes(self, shape_file_path=None):
         # Three buffer size configurations covering small/medium/large nested tensor cases
         self.shapes = [
@@ -59,7 +62,8 @@ class NestedViewFromBufferCopyBenchmark(base.Benchmark):
 def test_nested_view_from_buffer_copy(dtype):
     bench = NestedViewFromBufferCopyBenchmark(
         op_name="nested_view_from_buffer_copy",
-        torch_op=flag_gems._nested_view_from_buffer_copy,
+        torch_op=None,
+        gems_op=flag_gems._nested_view_from_buffer_copy,
         dtypes=[dtype],
     )
     bench.run()

@@ -167,11 +167,15 @@ class FusedRecurrentGatedDeltaRuleBenchmark(Benchmark):
 
 
 def _torch_op_wrapper(*args, **kwargs):
-    if VLLM_AVAILABLE:
-        return base_fused_recurrent_gated_delta_rule(*args, **kwargs)
-    return flag_gems.fused_recurrent_gated_delta_rule_fwd(*args, **kwargs)
+    if not VLLM_AVAILABLE:
+        pytest.skip("vLLM FLA baseline is unavailable; cannot measure a speedup")
+    return base_fused_recurrent_gated_delta_rule(*args, **kwargs)
 
 
+@pytest.mark.skipif(
+    not VLLM_AVAILABLE,
+    reason="vLLM FLA baseline is unavailable; cannot measure a speedup",
+)
 @pytest.mark.fused_recurrent_gated_delta_rule_fwd
 @pytest.mark.fused_recurrent_gated_delta_rule
 @pytest.mark.parametrize("qkv_contiguous", [False])
