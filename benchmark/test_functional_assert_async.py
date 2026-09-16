@@ -30,6 +30,9 @@ FUNCTIONAL_ASSERT_ASYNC_SHAPES = [
 
 
 class FunctionalAssertAsyncBenchmark(base.Benchmark):
+    # No native device baseline: report absolute Gems latency only.
+    DEFAULT_METRICS = ["latency"]
+
     def set_shapes(self, shape_file_path=None):
         self.shapes = FUNCTIONAL_ASSERT_ASYNC_SHAPES
 
@@ -45,9 +48,7 @@ class FunctionalAssertAsyncBenchmark(base.Benchmark):
 def test_functional_assert_async():
     bench = FunctionalAssertAsyncBenchmark(
         op_name="functional_assert_async",
-        # Use flag_gems._functional_assert_async for both baseline and gems
-        # since there is no native PyTorch CUDA implementation for this op.
-        torch_op=flag_gems._functional_assert_async,
+        torch_op=None,
         dtypes=[torch.int32, torch.float32, torch.float16],
     )
     bench.set_gems(flag_gems._functional_assert_async)

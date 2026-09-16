@@ -28,6 +28,15 @@ LINEAR_BACKWARD_SHAPES = [
 ]
 
 
+def torch_linear_backward(input, grad_output, weight, output_mask):
+    """Independent PyTorch reference, matching the accuracy test formulas."""
+    return (
+        grad_output @ weight if output_mask[0] else None,
+        grad_output.t() @ input if output_mask[1] else None,
+        grad_output.sum(dim=0) if output_mask[2] else None,
+    )
+
+
 class LinearBackwardBenchmark(base.Benchmark):
     def set_shapes(self, shape_file_path=None):
         self.shapes = LINEAR_BACKWARD_SHAPES
@@ -49,8 +58,7 @@ class LinearBackwardBenchmark(base.Benchmark):
 def test_linear_backward():
     bench = LinearBackwardBenchmark(
         op_name="linear_backward",
-        # Use flag_gems.linear_backward for both baseline and gems since there's no native PyTorch CUDA impl
-        torch_op=flag_gems.linear_backward,
+        torch_op=torch_linear_backward,
         # Keep the worktree benchmark dtype set; this backward benchmark uses only fp32/fp16 core cases.
         dtypes=[torch.float32, torch.float16],
     )
